@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: profit-party-market
+    runtime: docker
+    dockerfilePath: ./Dockerfile.hosted
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: SUGGESTION_ONLY
+        value: "true"
+      - key: GATEWAY_HOST
+        value: 0.0.0.0
+      - key: DATABENTO_ENABLED
+        value: "true"
+      - key: DATABENTO_DATASET
+        value: GLBX.MDP3
+      - key: DATABENTO_SYMBOL
+        value: NQ.v.0
+      - key: DATABENTO_STYPE
+        value: continuous
+      - key: ALPACA_FEED
+        value: iex
+      - key: ALLOWED_ORIGINS
+        value: https://profitparty.online,https://www.profitparty.online,https://profit-party.shady0324.chatgpt.site
+      - key: DATABENTO_API_KEY
+        sync: false
+      - key: HOSTED_ACCESS_TOKEN
+        sync: false
+      - key: ALPACA_API_KEY_ID
+        sync: false
+      - key: ALPACA_API_SECRET_KEY
+        sync: false
