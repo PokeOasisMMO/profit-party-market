@@ -1,0 +1,12 @@
+.git
+.openai
+.next
+.vinext
+dist
+node_modules
+gateway/.env
+gateway/.venv
+gateway/__pycache__
+gateway/replay_cache
+*.pyc
+*.db
