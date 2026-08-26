@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import hmac
 import json
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -115,6 +114,23 @@ app.add_middleware(
 app.add_middleware(GZipMiddleware, minimum_size=1_024)
 
 
+@app.get("/")
+async def service_status() -> dict[str, object]:
+    snapshot = await state.snapshot()
+    return {
+        "service": "Profit Party Market",
+        "online": True,
+        "mode": "public-read-only",
+        "suggestionsOnly": True,
+        "orderExecution": False,
+        "status": snapshot["status"],
+        "ready": snapshot["ready"],
+        "message": snapshot["message"],
+        "health": "/health",
+        "websocket": "/ws",
+    }
+
+
 @app.get("/health")
 async def health() -> dict[str, object]:
     snapshot = await state.snapshot()
@@ -138,11 +154,6 @@ async def market_socket(websocket: WebSocket) -> None:
     origin = websocket.headers.get("origin")
     if origin and origin not in CONFIG.allowed_origins:
         await websocket.close(code=1008, reason="Origin is not allowed")
-        return
-    supplied_token = websocket.query_params.get("token", "")
-    expected_token = CONFIG.hosted_access_token or ""
-    if not expected_token or not hmac.compare_digest(supplied_token, expected_token):
-        await websocket.close(code=1008, reason="Access token is required")
         return
 
     await websocket.accept()

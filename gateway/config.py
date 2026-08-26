@@ -59,7 +59,6 @@ class GatewayConfig:
     broadcast_interval_ms: int
     allowed_origins: tuple[str, ...]
     suggestion_only: bool
-    hosted_access_token: str | None
     databento_enabled: bool
     databento_api_key: str | None
     databento_dataset: str
@@ -94,7 +93,6 @@ class GatewayConfig:
                 "http://localhost:3000,http://localhost:4173,http://127.0.0.1:3000,http://127.0.0.1:4173,https://profit-party.shady0324.chatgpt.site,https://profitparty.online,https://www.profitparty.online",
             ),
             suggestion_only=True,
-            hosted_access_token=os.getenv("HOSTED_ACCESS_TOKEN") or None,
             databento_enabled=_boolean("DATABENTO_ENABLED", False),
             databento_api_key=os.getenv("DATABENTO_API_KEY") or None,
             databento_dataset=_text("DATABENTO_DATASET", "GLBX.MDP3"),
@@ -118,10 +116,7 @@ class GatewayConfig:
         )
 
     def missing_credentials(self) -> list[str]:
-        missing: list[str] = []
-        if not self.hosted_access_token:
-            missing.append("HOSTED_ACCESS_TOKEN")
-        return missing
+        return []
 
     def missing_optional_credentials(self) -> list[str]:
         missing: list[str] = []

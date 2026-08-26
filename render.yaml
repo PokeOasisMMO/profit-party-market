@@ -31,8 +31,6 @@ services:
         value: https://profitparty.online,https://www.profitparty.online,https://profit-party.shady0324.chatgpt.site
       - key: DATABENTO_API_KEY
         sync: false
-      - key: HOSTED_ACCESS_TOKEN
-        sync: false
       - key: ALPACA_API_KEY_ID
         sync: false
       - key: ALPACA_API_SECRET_KEY
