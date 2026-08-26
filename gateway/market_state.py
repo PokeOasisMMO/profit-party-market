@@ -5,10 +5,14 @@ import math
 import time
 from collections import deque
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .config import GatewayConfig
+
+
+_NQ_SESSION_TIMEZONE = ZoneInfo("America/Chicago")
 
 
 def _clamp(value: float, low: float, high: float) -> float:
@@ -42,6 +46,42 @@ def _event_latency_ms(timestamp_epoch: float) -> float | None:
     if age_ms < -5_000 or age_ms > 300_000:
         return None
     return max(0.0, age_ms)
+
+
+def _nq_session_start_epoch(reference_epoch: float) -> float:
+    """Return the 5 p.m. CT start of the CME NQ session containing a bar."""
+    local_reference = datetime.fromtimestamp(reference_epoch, UTC).astimezone(
+        _NQ_SESSION_TIMEZONE
+    )
+    local_start = local_reference.replace(hour=17, minute=0, second=0, microsecond=0)
+    if local_reference < local_start:
+        local_start -= timedelta(days=1)
+    return local_start.timestamp()
+
+
+def _session_vwap(
+    bars: list[dict[str, Any]], reference_epoch: float
+) -> tuple[float | None, float, int, str]:
+    """Calculate TradingView-style Session VWAP from one-minute HLC3 bars."""
+    session_start_epoch = _nq_session_start_epoch(reference_epoch)
+    session_bars = [
+        bar
+        for bar in bars
+        if session_start_epoch <= float(bar["epoch"]) <= reference_epoch
+        and max(0.0, float(bar["volume"])) > 0
+    ]
+    session_volume = sum(max(0.0, float(bar["volume"])) for bar in session_bars)
+    numerator = sum(
+        (
+            (float(bar["high"]) + float(bar["low"]) + float(bar["close"]))
+            / 3
+        )
+        * max(0.0, float(bar["volume"]))
+        for bar in session_bars
+    )
+    vwap = numerator / session_volume if session_volume > 0 else None
+    session_start = datetime.fromtimestamp(session_start_epoch, UTC).isoformat()
+    return vwap, session_volume, len(session_bars), session_start
 
 
 @dataclass(slots=True)
@@ -671,6 +711,7 @@ class MarketState:
 
     def _calculate(self, now_monotonic: float) -> dict[str, Any]:
         bars = list(self.bars)
+        context_bars = list(self.context_bars)
         price = self.price
         stale_age_ms = (
             (now_monotonic - self.market_monotonic) * 1_000
@@ -690,14 +731,12 @@ class MarketState:
 
         ranges = [max(0.0, float(bar["high"]) - float(bar["low"])) for bar in bars[-120:]]
         atr = sum(ranges) / len(ranges) if ranges else None
-        session_volume = sum(max(0.0, float(bar["volume"])) for bar in bars)
-        vwap_numerator = sum(
-            ((float(bar["high"]) + float(bar["low"]) + float(bar["close"])) / 3) * max(0.0, float(bar["volume"]))
-            for bar in bars
-        )
-        vwap = vwap_numerator / session_volume if session_volume > 0 else None
-
         latest_epoch = float(bars[-1]["epoch"])
+        vwap, session_volume, vwap_bar_count, vwap_session_start = _session_vwap(
+            context_bars,
+            latest_epoch,
+        )
+
         price_1s = self._price_at_or_before(latest_epoch - 1, bars)
         price_5s = self._price_at_or_before(latest_epoch - 5, bars)
         velocity = price - price_1s if price_1s is not None else None
@@ -822,6 +861,10 @@ class MarketState:
             "atr": _rounded(atr, 3),
             "vwap": _rounded(vwap, 2),
             "sessionVolume": _rounded(session_volume, 0),
+            "vwapSource": "hlc3",
+            "vwapAnchor": "session",
+            "vwapSessionStart": vwap_session_start,
+            "vwapBars": vwap_bar_count,
         }
         levels = {
             "buyLiquidity": self._round_to_tick(buy_liquidity),
@@ -860,6 +903,10 @@ class MarketState:
             "atr": None,
             "vwap": None,
             "sessionVolume": None,
+            "vwapSource": "hlc3",
+            "vwapAnchor": "session",
+            "vwapSessionStart": None,
+            "vwapBars": 0,
         }
 
     @staticmethod
