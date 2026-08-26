@@ -39,6 +39,16 @@ def _text(name: str, default: str) -> str:
     return raw.strip() if raw and raw.strip() else default
 
 
+def _optional_snowflake(name: str) -> int | None:
+    raw = os.getenv(name)
+    if not raw or not raw.strip():
+        return None
+    value = raw.strip()
+    if not value.isdigit() or not 15 <= len(value) <= 22:
+        raise ValueError(f"{name} must be a Discord ID")
+    return int(value)
+
+
 def _boolean(name: str, default: bool) -> bool:
     raw = os.getenv(name)
     if raw is None:
@@ -79,6 +89,11 @@ class GatewayConfig:
     treasury_poll_minutes: int
     cftc_positioning_enabled: bool
     cftc_poll_minutes: int
+    discord_bot_token: str | None
+    discord_guild_id: int | None
+    discord_vip_role_id: int | None
+    discord_site_url: str
+
     @classmethod
     def from_environment(cls) -> "GatewayConfig":
         configured_alpaca_symbols = _csv("ALPACA_SYMBOLS", "QQQ,NVDA")
@@ -113,6 +128,10 @@ class GatewayConfig:
             treasury_poll_minutes=max(30, _integer("TREASURY_POLL_MINUTES", 360)),
             cftc_positioning_enabled=_boolean("CFTC_POSITIONING_ENABLED", True),
             cftc_poll_minutes=max(60, _integer("CFTC_POLL_MINUTES", 360)),
+            discord_bot_token=os.getenv("DISCORD_BOT_TOKEN") or None,
+            discord_guild_id=_optional_snowflake("DISCORD_GUILD_ID"),
+            discord_vip_role_id=_optional_snowflake("DISCORD_VIP_ROLE_ID"),
+            discord_site_url=_text("DISCORD_SITE_URL", "https://profitparty.online"),
         )
 
     def missing_credentials(self) -> list[str]:
@@ -130,7 +149,16 @@ class GatewayConfig:
             missing.append("TOPSTEP_API_KEY")
         if self.databento_enabled and not self.databento_api_key:
             missing.append("DATABENTO_API_KEY")
+        if not self.discord_bot_token:
+            missing.append("DISCORD_BOT_TOKEN")
+        if not self.discord_guild_id:
+            missing.append("DISCORD_GUILD_ID")
+        if not self.discord_vip_role_id:
+            missing.append("DISCORD_VIP_ROLE_ID")
         return missing
+
+    def discord_bot_ready(self) -> bool:
+        return bool(self.discord_bot_token and self.discord_guild_id and self.discord_vip_role_id)
 
 
 CONFIG = GatewayConfig.from_environment()

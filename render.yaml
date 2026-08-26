@@ -27,6 +27,12 @@ services:
         value: NQ
       - key: TOPSTEP_HISTORY_MINUTES
         value: "20"
+      - key: DISCORD_GUILD_ID
+        value: "1415914999926358068"
+      - key: DISCORD_VIP_ROLE_ID
+        value: "1416508522920804433"
+      - key: DISCORD_SITE_URL
+        value: https://profitparty.online
       - key: ALLOWED_ORIGINS
         value: https://profitparty.online,https://www.profitparty.online,https://profit-party.shady0324.chatgpt.site
       - key: DATABENTO_API_KEY
@@ -38,4 +44,6 @@ services:
       - key: TOPSTEP_USERNAME
         sync: false
       - key: TOPSTEP_API_KEY
+        sync: false
+      - key: DISCORD_BOT_TOKEN
         sync: false

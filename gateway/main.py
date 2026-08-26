@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 
 from .config import CONFIG
+from .discord_bot import create_discord_bot
 from .koda_memory import KodaMemory
 from .market_state import MarketState
 from .providers.alpaca_feed import AlpacaFeed
@@ -35,6 +36,16 @@ if CONFIG.databento_enabled:
     except ImportError:
         databento_feed = None
 connections: set[WebSocket] = set()
+discord_bot = create_discord_bot(CONFIG, state, memory)
+
+
+def record_discord_bot_result(task: asyncio.Task[None]) -> None:
+    """Keep Discord startup failures visible through the public health check."""
+    if task.cancelled() or discord_bot is None:
+        return
+    error = task.exception()
+    if error is not None:
+        discord_bot.last_error = f"Bot stopped: {type(error).__name__}"
 
 
 async def broadcast_loop() -> None:
@@ -57,6 +68,7 @@ async def broadcast_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    discord_bot_task: asyncio.Task[None] | None = None
     missing = CONFIG.missing_credentials()
     await state.set_gateway_error(
         f"Missing gateway credentials: {', '.join(missing)}. Add them to gateway/.env."
@@ -78,6 +90,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     ]
     if databento_feed is not None:
         starters.append(databento_feed.start())
+    if discord_bot is not None and CONFIG.discord_bot_token:
+        discord_bot_task = asyncio.create_task(
+            discord_bot.start(CONFIG.discord_bot_token),
+            name="profit-party-discord-bot",
+        )
+        discord_bot_task.add_done_callback(record_discord_bot_result)
     await asyncio.gather(*starters)
     broadcaster = asyncio.create_task(broadcast_loop(), name="gateway-broadcast")
     try:
@@ -85,6 +103,11 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     finally:
         broadcaster.cancel()
         await asyncio.gather(broadcaster, return_exceptions=True)
+        if discord_bot is not None and not discord_bot.is_closed():
+            await discord_bot.close()
+        if discord_bot_task is not None:
+            discord_bot_task.cancel()
+            await asyncio.gather(discord_bot_task, return_exceptions=True)
         stoppers = [
             topstep_market.stop(),
             alpaca_feed.stop(),
@@ -128,6 +151,9 @@ async def service_status() -> dict[str, object]:
         "message": snapshot["message"],
         "health": "/health",
         "websocket": "/ws",
+        "discordBot": discord_bot.health()
+        if discord_bot is not None
+        else {"configured": False, "connected": False},
     }
 
 
@@ -144,6 +170,9 @@ async def health() -> dict[str, object]:
         "instrument": snapshot["instrument"],
         "memory": memory.summary(),
         "macro": snapshot.get("macro"),
+        "discordBot": discord_bot.health()
+        if discord_bot is not None
+        else {"configured": False, "connected": False},
         "missingCredentials": CONFIG.missing_credentials(),
         "missingOptionalCredentials": CONFIG.missing_optional_credentials(),
     }
