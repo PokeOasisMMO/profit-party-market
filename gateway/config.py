@@ -16,6 +16,23 @@ load_dotenv(GATEWAY_DIR / ".env", override=False)
 ALPACA_NQ_CONTEXT_SYMBOLS = (
     "QQQ",
     "NVDA",
+    "META",
+)
+
+# News is filtered to the companies that most often move Nasdaq futures plus
+# QQQ itself.  The separate Alpaca news socket does not consume stock-stream
+# symbol slots.
+DEFAULT_NQ_NEWS_SYMBOLS = (
+    "QQQ",
+    "META",
+    "NVDA",
+    "MSFT",
+    "AAPL",
+    "AMZN",
+    "GOOGL",
+    "GOOG",
+    "AVGO",
+    "TSLA",
 )
 
 
@@ -93,6 +110,10 @@ class GatewayConfig:
     discord_guild_id: int | None
     discord_vip_role_id: int | None
     discord_site_url: str
+    discord_news_channel_id: int | None
+    discord_news_channel_name: str
+    discord_news_enabled: bool
+    nq_news_symbols: tuple[str, ...]
 
     @classmethod
     def from_environment(cls) -> "GatewayConfig":
@@ -132,6 +153,10 @@ class GatewayConfig:
             discord_guild_id=_optional_snowflake("DISCORD_GUILD_ID"),
             discord_vip_role_id=_optional_snowflake("DISCORD_VIP_ROLE_ID"),
             discord_site_url=_text("DISCORD_SITE_URL", "https://profitparty.online"),
+            discord_news_channel_id=_optional_snowflake("DISCORD_NEWS_CHANNEL_ID"),
+            discord_news_channel_name=_text("DISCORD_NEWS_CHANNEL_NAME", "newsfeed"),
+            discord_news_enabled=_boolean("DISCORD_NEWS_ENABLED", True),
+            nq_news_symbols=_csv("NQ_NEWS_SYMBOLS", ",".join(DEFAULT_NQ_NEWS_SYMBOLS)),
         )
 
     def missing_credentials(self) -> list[str]:

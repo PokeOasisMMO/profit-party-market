@@ -19,7 +19,20 @@ class DiscordBotTests(unittest.TestCase):
         names = {command.name for command in KodaCommands.__cog_app_commands__}
         self.assertEqual(
             names,
-            {"nq", "setup", "levels", "flow", "session", "koda", "stats", "website"},
+            {
+                "nq",
+                "setup",
+                "levels",
+                "flow",
+                "session",
+                "koda",
+                "stats",
+                "website",
+                "news",
+                "daily",
+                "weekly",
+                "meta",
+            },
         )
 
     def test_market_values_render_without_fake_numbers(self) -> None:

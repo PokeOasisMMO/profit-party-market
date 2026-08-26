@@ -25,5 +25,10 @@ The same hosted service can keep Koda connected to the Profit Party Discord. Add
 - `DISCORD_GUILD_ID=1415914999926358068`
 - `DISCORD_VIP_ROLE_ID=1416508522920804433`
 - `DISCORD_SITE_URL=https://profitparty.online`
+- `DISCORD_NEWS_ENABLED=true`
+- `DISCORD_NEWS_CHANNEL_NAME=newsfeed`
+- `NQ_NEWS_SYMBOLS=QQQ,META,NVDA,MSFT,AAPL,AMZN,GOOGL,GOOG,AVGO,TSLA`
 
-Koda registers guild slash commands on startup: `/nq`, `/setup`, `/levels`, `/flow`, `/session`, `/koda`, `/stats`, and `/website`. Every command verifies the invoking member has the configured VIP role. The bot only reads the existing hosted market snapshot and never sends orders.
+Koda registers guild slash commands on startup: `/nq`, `/setup`, `/levels`, `/flow`, `/session`, `/koda`, `/stats`, `/website`, `/news`, `/daily`, `/weekly`, and `/meta`. Every command verifies the invoking member has the configured VIP role. The bot only reads the existing hosted market snapshot and never sends orders.
+
+The Discord newsroom automatically finds `#newsfeed` (or `#news-feed`, `#nq-news`, or `#market-news`) and posts source-linked NQ/META updates. It uses Alpaca's real-time news WebSocket with the existing Alpaca credentials, plus official Federal Reserve monetary-policy and BLS jobs/CPI/PPI RSS feeds. Koda adds the live NQ price response and a confirmation-based suggestion, posts meaningful bias/VWAP/META alerts, and schedules morning, opening, midday, closing, and Friday weekly briefs. It never invents a headline and never executes a trade.

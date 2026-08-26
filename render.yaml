@@ -33,6 +33,12 @@ services:
         value: "1416508522920804433"
       - key: DISCORD_SITE_URL
         value: https://profitparty.online
+      - key: DISCORD_NEWS_ENABLED
+        value: "true"
+      - key: DISCORD_NEWS_CHANNEL_NAME
+        value: newsfeed
+      - key: NQ_NEWS_SYMBOLS
+        value: QQQ,META,NVDA,MSFT,AAPL,AMZN,GOOGL,GOOG,AVGO,TSLA
       - key: ALLOWED_ORIGINS
         value: https://profitparty.online,https://www.profitparty.online,https://profit-party.shady0324.chatgpt.site
       - key: DATABENTO_API_KEY

@@ -9,6 +9,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from .config import GatewayConfig
+from .discord_newsroom import KodaNewsroom, meta_embed, news_embed, period_brief_embed
 from .koda_memory import KodaMemory
 from .market_state import MarketState
 
@@ -32,6 +33,7 @@ class KodaDiscordBot(commands.Bot):
         self.koda_memory = memory
         self.commands_synced = False
         self.last_error: str | None = None
+        self.newsroom = KodaNewsroom(self, config, state)
 
     async def setup_hook(self) -> None:
         await self.add_cog(KodaCommands(self))
@@ -45,6 +47,11 @@ class KodaDiscordBot(commands.Bot):
             status=discord.Status.online,
             activity=discord.Activity(type=discord.ActivityType.watching, name="NQ with Koda • /nq"),
         )
+        await self.newsroom.start()
+
+    async def close(self) -> None:
+        await self.newsroom.stop()
+        await super().close()
 
     async def on_error(self, event_method: str, *args: object, **kwargs: object) -> None:
         self.last_error = f"Discord event failed: {event_method}"
@@ -59,6 +66,7 @@ class KodaDiscordBot(commands.Bot):
             "user": str(self.user) if self.user else None,
             "latencyMs": round(self.latency * 1_000) if self.is_ready() else None,
             "error": self.last_error,
+            "newsroom": self.newsroom.health(),
         }
 
 
@@ -251,6 +259,63 @@ class KodaCommands(commands.Cog):
         )
         embed.set_footer(text="VIP role verified • Suggestions only")
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+    @app_commands.command(name="news", description="Show the latest NQ, META, or macro headline Koda received")
+    @app_commands.checks.cooldown(1, 5.0, key=lambda interaction: interaction.user.id)
+    async def news(self, interaction: discord.Interaction) -> None:
+        snapshot = await self._vip_snapshot(interaction)
+        if snapshot is None:
+            return
+        articles = self.bot.newsroom.recent_articles
+        if articles:
+            embed = news_embed(articles[0], snapshot)
+        else:
+            status = self.bot.newsroom.health()
+            embed = discord.Embed(
+                title="KODA • NQ NEWSROOM",
+                description="The newsroom is connected and waiting for the next relevant headline.",
+                color=DISCORD_COLOR,
+            )
+            embed.add_field(
+                name="Alpaca news",
+                value="LIVE" if status["alpacaNewsConnected"] else "CONNECTING",
+                inline=True,
+            )
+            embed.add_field(
+                name="Official macro feeds",
+                value=str(status["officialMacroFeeds"]),
+                inline=True,
+            )
+            embed.set_footer(text="META • QQQ • Nasdaq leaders • Fed • Jobs • CPI • PPI")
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(name="daily", description="Show Koda's rolling 24-hour NQ behavior brief")
+    @app_commands.checks.cooldown(1, 8.0, key=lambda interaction: interaction.user.id)
+    async def daily(self, interaction: discord.Interaction) -> None:
+        snapshot = await self._vip_snapshot(interaction)
+        if snapshot is None:
+            return
+        await interaction.response.send_message(
+            embed=period_brief_embed(snapshot, label="24H BEHAVIOR", hours=24)
+        )
+
+    @app_commands.command(name="weekly", description="Show Koda's rolling 7-day NQ behavior brief")
+    @app_commands.checks.cooldown(1, 8.0, key=lambda interaction: interaction.user.id)
+    async def weekly(self, interaction: discord.Interaction) -> None:
+        snapshot = await self._vip_snapshot(interaction)
+        if snapshot is None:
+            return
+        await interaction.response.send_message(
+            embed=period_brief_embed(snapshot, label="7D BEHAVIOR", hours=168)
+        )
+
+    @app_commands.command(name="meta", description="Show META's live Nasdaq impact and Koda's NQ read")
+    @app_commands.checks.cooldown(1, 5.0, key=lambda interaction: interaction.user.id)
+    async def meta(self, interaction: discord.Interaction) -> None:
+        snapshot = await self._vip_snapshot(interaction)
+        if snapshot is None:
+            return
+        await interaction.response.send_message(embed=meta_embed(snapshot))
 
     async def cog_app_command_error(
         self,
