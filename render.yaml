@@ -21,6 +21,12 @@ services:
         value: continuous
       - key: ALPACA_FEED
         value: iex
+      - key: TOPSTEP_MARKET_LIVE
+        value: "false"
+      - key: TOPSTEP_CONTRACT_SEARCH
+        value: NQ
+      - key: TOPSTEP_HISTORY_MINUTES
+        value: "20"
       - key: ALLOWED_ORIGINS
         value: https://profitparty.online,https://www.profitparty.online,https://profit-party.shady0324.chatgpt.site
       - key: DATABENTO_API_KEY
@@ -30,4 +36,8 @@ services:
       - key: ALPACA_API_KEY_ID
         sync: false
       - key: ALPACA_API_SECRET_KEY
+        sync: false
+      - key: TOPSTEP_USERNAME
+        sync: false
+      - key: TOPSTEP_API_KEY
         sync: false

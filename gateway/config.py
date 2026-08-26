@@ -82,6 +82,12 @@ class GatewayConfig:
     alpaca_api_secret_key: str | None
     alpaca_feed: str
     alpaca_symbols: tuple[str, ...]
+    topstep_username: str | None
+    topstep_api_key: str | None
+    topstep_market_live: bool
+    topstep_contract_id: str | None
+    topstep_contract_search: str
+    topstep_history_minutes: int
     treasury_yields_enabled: bool
     treasury_poll_minutes: int
     cftc_positioning_enabled: bool
@@ -111,6 +117,12 @@ class GatewayConfig:
             alpaca_api_secret_key=os.getenv("ALPACA_API_SECRET_KEY") or None,
             alpaca_feed=os.getenv("ALPACA_FEED", "iex"),
             alpaca_symbols=alpaca_symbols,
+            topstep_username=os.getenv("TOPSTEP_USERNAME") or None,
+            topstep_api_key=os.getenv("TOPSTEP_API_KEY") or None,
+            topstep_market_live=_boolean("TOPSTEP_MARKET_LIVE", False),
+            topstep_contract_id=os.getenv("TOPSTEP_CONTRACT_ID") or None,
+            topstep_contract_search=os.getenv("TOPSTEP_CONTRACT_SEARCH", "NQ"),
+            topstep_history_minutes=max(1, _integer("TOPSTEP_HISTORY_MINUTES", 20)),
             treasury_yields_enabled=_boolean("TREASURY_YIELDS_ENABLED", True),
             treasury_poll_minutes=max(30, _integer("TREASURY_POLL_MINUTES", 360)),
             cftc_positioning_enabled=_boolean("CFTC_POSITIONING_ENABLED", True),
@@ -119,8 +131,6 @@ class GatewayConfig:
 
     def missing_credentials(self) -> list[str]:
         missing: list[str] = []
-        if not self.databento_api_key:
-            missing.append("DATABENTO_API_KEY")
         if not self.hosted_access_token:
             missing.append("HOSTED_ACCESS_TOKEN")
         return missing
@@ -131,6 +141,10 @@ class GatewayConfig:
             missing.append("ALPACA_API_KEY_ID")
         if not self.alpaca_api_secret_key:
             missing.append("ALPACA_API_SECRET_KEY")
+        if not self.topstep_username:
+            missing.append("TOPSTEP_USERNAME")
+        if not self.topstep_api_key:
+            missing.append("TOPSTEP_API_KEY")
         if self.databento_enabled and not self.databento_api_key:
             missing.append("DATABENTO_API_KEY")
         return missing

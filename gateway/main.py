@@ -18,11 +18,13 @@ from .market_state import MarketState
 from .providers.alpaca_feed import AlpacaFeed
 from .providers.treasury_yields import TreasuryYieldFeed
 from .providers.cftc_positioning import CftcPositioningFeed
+from .providers.topstep_market import TopstepMarketFeed
 
 
 state = MarketState(CONFIG)
 memory = KodaMemory(Path(__file__).resolve().parent / "koda_memory.db")
 alpaca_feed = AlpacaFeed(CONFIG, state)
+topstep_market = TopstepMarketFeed(CONFIG, state)
 treasury_yields = TreasuryYieldFeed(CONFIG, state)
 cftc_positioning = CftcPositioningFeed(CONFIG, state)
 databento_feed = None
@@ -69,7 +71,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
             connected=False,
             error=error,
         )
-    starters = [alpaca_feed.start(), treasury_yields.start(), cftc_positioning.start()]
+    starters = [
+        topstep_market.start(),
+        alpaca_feed.start(),
+        treasury_yields.start(),
+        cftc_positioning.start(),
+    ]
     if databento_feed is not None:
         starters.append(databento_feed.start())
     await asyncio.gather(*starters)
@@ -79,7 +86,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     finally:
         broadcaster.cancel()
         await asyncio.gather(broadcaster, return_exceptions=True)
-        stoppers = [alpaca_feed.stop(), treasury_yields.stop(), cftc_positioning.stop()]
+        stoppers = [
+            topstep_market.stop(),
+            alpaca_feed.stop(),
+            treasury_yields.stop(),
+            cftc_positioning.stop(),
+        ]
         if databento_feed is not None:
             stoppers.append(databento_feed.stop())
         await asyncio.gather(*stoppers, return_exceptions=True)

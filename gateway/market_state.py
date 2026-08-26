@@ -942,14 +942,14 @@ class MarketState:
                 message = topstep_market.error
             elif self.price is None:
                 status = "connecting"
-                message = "Waiting for the first hosted Databento NQ update." if self.config.suggestion_only else "Waiting for the first Topstep NQ market update."
+                message = "Waiting for the first hosted Topstep or Databento NQ update." if self.config.suggestion_only else "Waiting for the first Topstep NQ market update."
             elif stale:
                 status = "stale"
                 message = "The hosted NQ feed is stale. Suggestions are locked until fresh market data returns." if self.config.suggestion_only else "The Topstep NQ feed is stale. Signals are locked until fresh market data returns."
             else:
                 status = "connected"
                 required_names = ({
-                    "databento": "Databento NQ",
+                    "topstepMarket": "Topstep read-only NQ",
                     "alpaca": "Alpaca context",
                 } if self.config.suggestion_only else {
                     "topstepMarket": "Topstep NQ",
@@ -981,7 +981,7 @@ class MarketState:
                         for source in sources
                     )
                     message = (
-                        "Hosted Databento NQ suggestions are live. Order execution is permanently disabled."
+                        f"Hosted {source_label or 'NQ'} suggestions are live. Topstep is market-data-only and order execution is permanently disabled."
                         if self.config.suggestion_only and not missing
                         else f"All required real NQ streams are live through {source_label}."
                         if not missing
