@@ -7,14 +7,16 @@ from pathlib import Path
 from typing import AsyncIterator
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
+from pydantic import BaseModel, Field
 
 from .config import CONFIG
 from .discord_bot import create_discord_bot
 from .koda_memory import KodaMemory
 from .market_state import MarketState
+from .nq_history import NqHistoryResearch
 from .providers.alpaca_feed import AlpacaFeed
 from .providers.treasury_yields import TreasuryYieldFeed
 from .providers.cftc_positioning import CftcPositioningFeed
@@ -27,6 +29,7 @@ alpaca_feed = AlpacaFeed(CONFIG, state)
 topstep_market = TopstepMarketFeed(CONFIG, state)
 treasury_yields = TreasuryYieldFeed(CONFIG, state)
 cftc_positioning = CftcPositioningFeed(CONFIG, state)
+nq_history = NqHistoryResearch(CONFIG.databento_api_key)
 databento_feed = None
 if CONFIG.databento_enabled:
     try:
@@ -170,12 +173,25 @@ async def health() -> dict[str, object]:
         "instrument": snapshot["instrument"],
         "memory": memory.summary(),
         "macro": snapshot.get("macro"),
+        "nqHistory": nq_history.health(),
         "discordBot": discord_bot.health()
         if discord_bot is not None
         else {"configured": False, "connected": False},
         "missingCredentials": CONFIG.missing_credentials(),
         "missingOptionalCredentials": CONFIG.missing_optional_credentials(),
     }
+
+
+class KodaStatsQuestion(BaseModel):
+    question: str = Field(min_length=3, max_length=240)
+
+
+@app.post("/koda/stats/query")
+async def koda_stats_query(request: KodaStatsQuestion) -> dict[str, object]:
+    try:
+        return await nq_history.answer(request.question)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.websocket("/ws")
