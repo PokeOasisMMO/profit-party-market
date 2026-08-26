@@ -10,29 +10,12 @@ from dotenv import load_dotenv
 GATEWAY_DIR = Path(__file__).resolve().parent
 load_dotenv(GATEWAY_DIR / ".env", override=False)
 
-# A broad but still compact NQ context basket.  These are streamed from the
-# user's existing Alpaca IEX connection.  Keeping the union here means older
-# .env files that only list QQQ,NVDA automatically receive the upgraded brain.
+# Keep the default Alpaca subscription deliberately small. Free IEX accounts
+# can reject a wide symbol basket with "symbol limit exceeded"; QQQ and NVDA
+# supply the most useful fast confirmation without destabilizing the feed.
 ALPACA_NQ_CONTEXT_SYMBOLS = (
     "QQQ",
     "NVDA",
-    "MSFT",
-    "AAPL",
-    "AMZN",
-    "META",
-    "GOOGL",
-    "AVGO",
-    "AMD",
-    "TSLA",
-    "SMH",
-    "SOXX",
-    "XLK",
-    "IGV",
-    "SPY",
-    "IWM",
-    "TLT",
-    "IEF",
-    "SHY",
 )
 
 
@@ -49,6 +32,11 @@ def _integer(name: str, default: int) -> int:
         return int(raw)
     except ValueError as exc:
         raise ValueError(f"{name} must be an integer") from exc
+
+
+def _text(name: str, default: str) -> str:
+    raw = os.getenv(name)
+    return raw.strip() if raw and raw.strip() else default
 
 
 def _boolean(name: str, default: bool) -> bool:
@@ -109,19 +97,19 @@ class GatewayConfig:
             hosted_access_token=os.getenv("HOSTED_ACCESS_TOKEN") or None,
             databento_enabled=_boolean("DATABENTO_ENABLED", False),
             databento_api_key=os.getenv("DATABENTO_API_KEY") or None,
-            databento_dataset=os.getenv("DATABENTO_DATASET", "GLBX.MDP3"),
-            databento_symbol=os.getenv("DATABENTO_SYMBOL", "NQ.v.0"),
-            databento_stype=os.getenv("DATABENTO_STYPE", "continuous"),
+            databento_dataset=_text("DATABENTO_DATASET", "GLBX.MDP3"),
+            databento_symbol=_text("DATABENTO_SYMBOL", "NQ.v.0"),
+            databento_stype=_text("DATABENTO_STYPE", "continuous"),
             databento_replay_minutes=_integer("DATABENTO_REPLAY_MINUTES", 20),
             alpaca_api_key_id=os.getenv("ALPACA_API_KEY_ID") or None,
             alpaca_api_secret_key=os.getenv("ALPACA_API_SECRET_KEY") or None,
-            alpaca_feed=os.getenv("ALPACA_FEED", "iex"),
+            alpaca_feed=_text("ALPACA_FEED", "iex"),
             alpaca_symbols=alpaca_symbols,
             topstep_username=os.getenv("TOPSTEP_USERNAME") or None,
             topstep_api_key=os.getenv("TOPSTEP_API_KEY") or None,
             topstep_market_live=_boolean("TOPSTEP_MARKET_LIVE", False),
             topstep_contract_id=os.getenv("TOPSTEP_CONTRACT_ID") or None,
-            topstep_contract_search=os.getenv("TOPSTEP_CONTRACT_SEARCH", "NQ"),
+            topstep_contract_search=_text("TOPSTEP_CONTRACT_SEARCH", "NQ"),
             topstep_history_minutes=max(1, _integer("TOPSTEP_HISTORY_MINUTES", 20)),
             treasury_yields_enabled=_boolean("TREASURY_YIELDS_ENABLED", True),
             treasury_poll_minutes=max(30, _integer("TREASURY_POLL_MINUTES", 360)),
